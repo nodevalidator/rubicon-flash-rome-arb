@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "rome": {
+      "command": "rome",
+      "args": ["mcp"]
+    }
+  }
+}

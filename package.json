@@ -1,0 +1,26 @@
+{
+  "name": "rubicon-flash-rome-arb",
+  "version": "1.0.0",
+  "description": "Rubicon Flash — Dual-Lane Atomic Arbitrage Router & Shared Vault on Rome Protocol (Hadrian Testnet & Rubicon Mainnet)",
+  "private": true,
+  "scripts": {
+    "compile": "node scripts/compile-and-test.mjs --compile-only",
+    "test": "node scripts/compile-and-test.mjs",
+    "sim": "node scripts/arb-bot.mjs --simulate",
+    "deploy:hadrian": "node scripts/deploy.mjs --network hadrian",
+    "deploy:rubicon": "node scripts/deploy.mjs --network rubicon",
+    "facts:hadrian": "node scripts/chain-facts.mjs hadrian",
+    "facts:rubicon": "node scripts/chain-facts.mjs rubicon",
+    "dev": "node server.mjs"
+  },
+  "keywords": [
+    "rome-protocol",
+    "rome-arena",
+    "atomic-arbitrage",
+    "solana-cpi",
+    "dual-lane",
+    "rubicon",
+    "hadrian"
+  ],
+  "license": "MIT"
+}

@@ -1,0 +1,42 @@
+{
+  "project": "Rubicon Flash — Dual-Lane Atomic Arbitrage Router & Shared Vault",
+  "solidityVersion": "0.8.28",
+  "builtAt": "2026-11-09T15:23:46.206Z",
+  "romePrecompiles": {
+    "ISystemProgram": "0xFF00000000000000000000000000000000000007",
+    "ICrossProgramInvocation": "0xFF00000000000000000000000000000000000008",
+    "IHelperProgram": "0xFF00000000000000000000000000000000000009"
+  },
+  "contracts": [
+    {
+      "file": "contracts/interfaces/IRomePrecompiles.sol",
+      "lines": 134,
+      "bytes": 5603,
+      "sha256": "1bffd973ca0123197f8162319e32b07a783328b104d80abf01b76bf53d08320c"
+    },
+    {
+      "file": "contracts/interfaces/IUniswapV3AndMeteora.sol",
+      "lines": 117,
+      "bytes": 4537,
+      "sha256": "175d1d57e56a204d58179867fc894346e4169fcfde3e6bbeab9f9d48fe177b9a"
+    },
+    {
+      "file": "contracts/RomeArbVault.sol",
+      "lines": 265,
+      "bytes": 9453,
+      "sha256": "2d53ad9ede80d7a36122911e3a0216ca730cd65ed800bada97c0c95dde46192f"
+    },
+    {
+      "file": "contracts/AtomicArbRouter.sol",
+      "lines": 440,
+      "bytes": 17417,
+      "sha256": "01008f00ef1b77e369cac9b52c579880ec50961382f5001733aff776d22bb5a0"
+    },
+    {
+      "file": "contracts/MockArenaPools.sol",
+      "lines": 211,
+      "bytes": 7411,
+      "sha256": "49efadd117a9369691837627db8b05bb4aa7ee7fc1675be7979786858c7bd701"
+    }
+  ]
+}

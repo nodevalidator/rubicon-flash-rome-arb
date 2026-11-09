@@ -1,0 +1,11 @@
+{
+  "network": "hadrian",
+  "chainId": 200010,
+  "rpcUrl": "https://hadrian.testnet.romeprotocol.xyz/",
+  "wUSDC": "0x0952d23300000000000000000000000000200010",
+  "wSOL": "0xc4e29e0f00000000000000000000000000200010",
+  "RomeArbVault": "0xde5a98e859b3db232c3ca8417b6e70967b4b0972",
+  "AtomicArbRouter": "0xee53a2dc1017d2626822f4142621c72a08fa1dcf",
+  "MockArenaMirrorPools": "0x48b67c941a9a6ecf38223cd4afba209b7d056ac0",
+  "RouterExternalAuthorityPDA": "0x6a15168b793cda9c2d4d18e70ef4ca65b8ec2dfd9d372c77a61ee8db8cb6702c"
+}

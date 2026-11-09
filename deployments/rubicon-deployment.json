@@ -1,0 +1,11 @@
+{
+  "network": "rubicon",
+  "chainId": 7531,
+  "rpcUrl": "https://rubicon.mainnet.romeprotocol.xyz/",
+  "wUSDC": "0x0952d2330000000000000000000000000000f9b3",
+  "wSOL": "0xc4e29e0f0000000000000000000000000000a113",
+  "RomeArbVault": "0xe4aa31a61ffed19642814f7f86bda7127ca8efac",
+  "AtomicArbRouter": "0x0bfdc775d5508c50fc39509a9c99438c7a2a92d3",
+  "MockArenaMirrorPools": "0xe12bbc6abaf3983f8377056172bd22f150490398",
+  "RouterExternalAuthorityPDA": "0x5f1526e1229f07859b9d9be9627a38317c4647116798ed026cf4321b2d771cec"
+}
