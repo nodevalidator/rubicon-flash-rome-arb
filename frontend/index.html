@@ -619,10 +619,143 @@
 
     const fmtUsd = (n) => "$" + Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+    // Embedded fallback runtime so the dashboard works 100% standalone (GitHub Pages / Vercel static) as well as with the Node/Vercel API
+    const LOCAL_CHAINS = {
+      hadrian: {
+        name: "Rome Hadrian Testnet",
+        chainId: 200010,
+        rpcUrl: "https://hadrian.testnet.romeprotocol.xyz/",
+        romeEvmProgramId: "RPTWwELXAY4KC9ZPHhaxp7Sq1hHtU3HNEgLbSegCcWf",
+        nativeCurrency: { symbol: "USDC" },
+        contracts: {
+          ERC20SPLFactory: "0x37c13e4f00000000000000000000000000001078",
+          UniswapV3Factory: "0xD9E323080000000000000000000000000000D5bD"
+        },
+        tokens: {
+          wUSDC: { address: "0x0952d23300000000000000000000000000200010" },
+          wSOL: { address: "0xc4e29e0f00000000000000000000000000200010" }
+        }
+      },
+      rubicon: {
+        name: "Rome Rubicon Mainnet",
+        chainId: 7531,
+        rpcUrl: "https://rubicon.mainnet.romeprotocol.xyz/",
+        romeEvmProgramId: "RomePq9X3iAoTr813HR7uRarafFDUJty6GdiEceYpzX",
+        nativeCurrency: { symbol: "ROME" },
+        contracts: {
+          ERC20SPLFactory: "0x4068aa740000000000000000000000000000ae6e",
+          UniswapV3Factory: "0x02aed7760000000000000000000000000000a025"
+        },
+        tokens: {
+          wUSDC: { address: "0x0952d2330000000000000000000000000000f9b3" },
+          wSOL: { address: "0xc4e29e0f0000000000000000000000000000a113" }
+        }
+      }
+    };
+
+    const localEngine = {
+      vaultTotalAssetsUsdc: 150000,
+      vaultTotalShares: 150000,
+      userWalletUsdc: 25000,
+      userVaultShares: 0,
+      totalUniqueUsers: 1,
+      totalArbitrageVolumeUsdc: 0,
+      totalCumulativeYieldUsdc: 0,
+      totalKeeperBountiesUsdc: 0,
+      totalArbTradesCount: 0,
+      recentLogs: []
+    };
+
+    function toLe64Hex(num) {
+      let v = BigInt(Math.max(0, Math.round(num)));
+      let hex = "";
+      for (let i = 0; i < 8; i++) {
+        hex += Number(v & 0xffn).toString(16).padStart(2, "0");
+        v >>= 8n;
+      }
+      return hex;
+    }
+
+    function computeLocalState() {
+      const chain = LOCAL_CHAINS[state.network] || LOCAL_CHAINS.hadrian;
+      const principalUsdc = parseFloat(document.getElementById("arbPrincipalInput").value || "10000");
+      const minProfitUsdc = parseFloat(document.getElementById("minProfitInput").value || "25");
+      const spreadPct = Number((((state.meteoraPrice - state.uniPrice) / state.uniPrice) * 100).toFixed(2));
+      const direction = state.meteoraPrice >= state.uniPrice ? "EVM_TO_SOLANA" : "SOLANA_TO_EVM";
+
+      let grossOutUsdc = 0;
+      if (direction === "EVM_TO_SOLANA") {
+        const solBought = principalUsdc / state.uniPrice;
+        const grossMeteora = solBought * state.meteoraPrice;
+        grossOutUsdc = grossMeteora * (1 - 0.0015);
+      } else {
+        const solBought = (principalUsdc / state.meteoraPrice) * (1 - 0.0015);
+        grossOutUsdc = solBought * state.uniPrice;
+      }
+
+      const netProfitUsdc = grossOutUsdc - principalUsdc;
+      const profitable = netProfitUsdc >= minProfitUsdc;
+      const keeperBountyUsdc = profitable ? netProfitUsdc * 0.2 : 0;
+      const lpVaultYieldUsdc = profitable ? netProfitUsdc * 0.8 : 0;
+      const borshHex = "0xf8c69e91e17587c8" + toLe64Hex(principalUsdc * 1e6) + toLe64Hex((principalUsdc + minProfitUsdc) * 1e6);
+      const externalPda = "0xb83e8accbdc02adbc5d25897fdd9312e83d6318145668c340f63dfe6b179ecee";
+
+      const sharePrice = localEngine.vaultTotalShares > 0
+        ? localEngine.vaultTotalAssetsUsdc / localEngine.vaultTotalShares
+        : 1.0;
+
+      return {
+        chain,
+        simulation: {
+          marketState: { spreadPct, optimalDirection: direction },
+          romeCpiInspection: {
+            routerExternalAuthorityPda: externalPda,
+            borshInstructionPayload: borshHex,
+            solanaAccounts: [
+              { label: "Meteora DAMM Pool State", pubkey: "0x6a9f00112233445566778899aabbccddeeff00112233445566778899aabbcc01", isSigner: false, isWritable: true },
+              { label: "Router wSOL Associated Token Account", pubkey: "0x7b8e00112233445566778899aabbccddeeff00112233445566778899aabbcc02", isSigner: false, isWritable: true },
+              { label: "Router wUSDC Associated Token Account", pubkey: "0x8c7d00112233445566778899aabbccddeeff00112233445566778899aabbcc03", isSigner: false, isWritable: true },
+              { label: "Meteora Token A Vault (SOL)", pubkey: "0x9d6c00112233445566778899aabbccddeeff00112233445566778899aabbcc04", isSigner: false, isWritable: true },
+              { label: "Meteora Token B Vault (USDC)", pubkey: "0xae5b00112233445566778899aabbccddeeff00112233445566778899aabbcc05", isSigner: false, isWritable: true },
+              { label: "Router External-Authority PDA (Signer)", pubkey: externalPda, isSigner: true, isWritable: false },
+              { label: "Solana SPL Token Program", pubkey: "0x06ddf6e1d765a193d9cbe146ceeb79ac1cb485ed5f5b37913a8cf5857eff00a9", isSigner: false, isWritable: false }
+            ]
+          },
+          simulationOutcome: {
+            status: profitable ? "PROFITABLE_READY" : "ATOMIC_REVERT_GUARD_TRIGGERED",
+            netProfitUsdc,
+            keeperBountyUsdc,
+            lpVaultYieldUsdc
+          }
+        },
+        vault: {
+          totalAssetsUsdc: localEngine.vaultTotalAssetsUsdc,
+          totalShares: localEngine.vaultTotalShares,
+          sharePrice,
+          totalUniqueUsers: localEngine.totalUniqueUsers,
+          totalArbitrageVolumeUsdc: localEngine.totalArbitrageVolumeUsdc,
+          totalCumulativeYieldUsdc: localEngine.totalCumulativeYieldUsdc,
+          totalKeeperBountiesUsdc: localEngine.totalKeeperBountiesUsdc,
+          totalArbTradesCount: localEngine.totalArbTradesCount
+        },
+        user: {
+          walletUsdc: localEngine.userWalletUsdc,
+          vaultShares: localEngine.userVaultShares,
+          vaultAssetsValueUsdc: localEngine.userVaultShares * sharePrice
+        },
+        recentLogs: localEngine.recentLogs
+      };
+    }
+
     async function fetchState() {
-      const res = await fetch(`/api/state?network=${state.network}&uniPrice=${state.uniPrice}&meteoraPrice=${state.meteoraPrice}&principal=${document.getElementById("arbPrincipalInput").value}&minProfit=${document.getElementById("minProfitInput").value}`);
-      const data = await res.json();
-      renderDashboard(data);
+      try {
+        const res = await fetch(`/api/state?network=${state.network}&uniPrice=${state.uniPrice}&meteoraPrice=${state.meteoraPrice}&principal=${document.getElementById("arbPrincipalInput").value}&minProfit=${document.getElementById("minProfitInput").value}`);
+        if (!res.ok) throw new Error("Static fallback");
+        const data = await res.json();
+        renderDashboard(data);
+      } catch {
+        renderDashboard(computeLocalState());
+      }
     }
 
     function renderDashboard(data) {
@@ -746,11 +879,12 @@
           solDisplay = resp.publicKey.toString().slice(0, 5) + "..." + resp.publicKey.toString().slice(-4);
         } catch {}
       }
+      if (!state.solConnected) localEngine.totalUniqueUsers += 1;
       state.solConnected = true;
       document.getElementById("btnSolWallet").classList.add("active-sol");
       document.getElementById("dotSol").classList.add("live");
       document.getElementById("labelSolWallet").textContent = `Phantom: ${solDisplay} (Dual-Lane Linked)`;
-      await fetch("/api/link-wallet", { method: "POST" });
+      try { await fetch("/api/link-wallet", { method: "POST" }); } catch {}
       fetchState();
     });
 
@@ -758,18 +892,35 @@
     document.getElementById("btnDeposit").addEventListener("click", async () => {
       const amount = parseFloat(document.getElementById("depositInput").value || "0");
       const toast = document.getElementById("vaultToast");
-      const res = await fetch("/api/deposit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amountUsdc: amount }),
-      });
-      const out = await res.json();
-      if (out.ok) {
-        toast.className = "toast ok";
-        toast.textContent = `✓ Deposited ${fmtUsd(amount)} wUSDC into Shared Vault! Minted ${(Number(out.sharesMintedE6)/1e6).toFixed(2)} rvUSDC.`;
-      } else {
-        toast.className = "toast err";
-        toast.textContent = `✗ Deposit Error: ${out.error}`;
+      try {
+        const res = await fetch("/api/deposit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ amountUsdc: amount }),
+        });
+        if (!res.ok && res.status === 404) throw new Error("Static fallback");
+        const out = await res.json();
+        if (out.ok) {
+          toast.className = "toast ok";
+          toast.textContent = `✓ Deposited ${fmtUsd(amount)} wUSDC into Shared Vault! Minted ${(Number(out.sharesMintedE6)/1e6).toFixed(2)} rvUSDC.`;
+        } else {
+          toast.className = "toast err";
+          toast.textContent = `✗ Deposit Error: ${out.error}`;
+        }
+      } catch {
+        if (amount <= 0 || amount > localEngine.userWalletUsdc) {
+          toast.className = "toast err";
+          toast.textContent = `✗ Deposit Error: Insufficient wUSDC balance`;
+        } else {
+          const sharePrice = localEngine.vaultTotalAssetsUsdc / localEngine.vaultTotalShares;
+          const minted = amount / sharePrice;
+          localEngine.userWalletUsdc -= amount;
+          localEngine.vaultTotalAssetsUsdc += amount;
+          localEngine.vaultTotalShares += minted;
+          localEngine.userVaultShares += minted;
+          toast.className = "toast ok";
+          toast.textContent = `✓ Deposited ${fmtUsd(amount)} wUSDC into Shared Vault! Minted ${minted.toFixed(2)} rvUSDC.`;
+        }
       }
       fetchState();
     });
@@ -778,18 +929,35 @@
     document.getElementById("btnWithdraw").addEventListener("click", async () => {
       const shares = parseFloat(document.getElementById("withdrawInput").value || "0");
       const toast = document.getElementById("vaultToast");
-      const res = await fetch("/api/withdraw", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ shares }),
-      });
-      const out = await res.json();
-      if (out.ok) {
-        toast.className = "toast ok";
-        toast.textContent = `✓ Burned ${shares.toFixed(2)} rvUSDC shares -> Received ${fmtUsd(Number(out.assetsOutE6)/1e6)} wUSDC (Principal + Arbitrage Yield)!`;
-      } else {
-        toast.className = "toast err";
-        toast.textContent = `✗ Withdraw Error: ${out.error}`;
+      try {
+        const res = await fetch("/api/withdraw", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ shares }),
+        });
+        if (!res.ok && res.status === 404) throw new Error("Static fallback");
+        const out = await res.json();
+        if (out.ok) {
+          toast.className = "toast ok";
+          toast.textContent = `✓ Burned ${shares.toFixed(2)} rvUSDC shares -> Received ${fmtUsd(Number(out.assetsOutE6)/1e6)} wUSDC (Principal + Arbitrage Yield)!`;
+        } else {
+          toast.className = "toast err";
+          toast.textContent = `✗ Withdraw Error: ${out.error}`;
+        }
+      } catch {
+        if (shares <= 0 || shares > localEngine.userVaultShares) {
+          toast.className = "toast err";
+          toast.textContent = `✗ Withdraw Error: Insufficient rvUSDC shares`;
+        } else {
+          const sharePrice = localEngine.vaultTotalAssetsUsdc / localEngine.vaultTotalShares;
+          const assetsOut = shares * sharePrice;
+          localEngine.userVaultShares -= shares;
+          localEngine.vaultTotalShares -= shares;
+          localEngine.vaultTotalAssetsUsdc -= assetsOut;
+          localEngine.userWalletUsdc += assetsOut;
+          toast.className = "toast ok";
+          toast.textContent = `✓ Burned ${shares.toFixed(2)} rvUSDC shares -> Received ${fmtUsd(assetsOut)} wUSDC (Principal + Arbitrage Yield)!`;
+        }
       }
       fetchState();
     });
@@ -804,19 +972,48 @@
         principalUsdc: parseFloat(document.getElementById("arbPrincipalInput").value || "10000"),
         minProfitUsdc: parseFloat(document.getElementById("minProfitInput").value || "25"),
       };
-      const res = await fetch("/api/execute-arb", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const out = await res.json();
-      if (out.ok) {
-        const r = out.result;
-        toast.className = "toast ok";
-        toast.innerHTML = `✓ <b>ATOMIC SOLANA CPI SETTLED (~400ms)!</b> Strategy #${r.strategyId} • Net Profit: <b>+${fmtUsd(Number(r.netProfitE6)/1e6)}</b> (Vault LP Yield: +${fmtUsd(Number(r.lpYieldE6)/1e6)} | Your Keeper Bounty: +${fmtUsd(Number(r.keeperBountyE6)/1e6)})`;
-      } else {
-        toast.className = "toast err";
-        toast.innerHTML = `🛡️ <b>ATOMIC REVERT GUARD TRIGGERED:</b> ${out.error} — Entire EVM + Solana CPI transaction rolled back with 0 principal loss!`;
+      try {
+        const res = await fetch("/api/execute-arb", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok && res.status === 404) throw new Error("Static fallback");
+        const out = await res.json();
+        if (out.ok) {
+          const r = out.result;
+          toast.className = "toast ok";
+          toast.innerHTML = `✓ <b>ATOMIC SOLANA CPI SETTLED (~400ms)!</b> Strategy #${r.strategyId} • Net Profit: <b>+${fmtUsd(Number(r.netProfitE6)/1e6)}</b> (Vault LP Yield: +${fmtUsd(Number(r.lpYieldE6)/1e6)} | Your Keeper Bounty: +${fmtUsd(Number(r.keeperBountyE6)/1e6)})`;
+        } else {
+          toast.className = "toast err";
+          toast.innerHTML = `🛡️ <b>ATOMIC REVERT GUARD TRIGGERED:</b> ${out.error} — Entire EVM + Solana CPI transaction rolled back with 0 principal loss!`;
+        }
+      } catch {
+        const sim = computeLocalState().simulation;
+        if (sim.simulationOutcome.status === "PROFITABLE_READY") {
+          const net = sim.simulationOutcome.netProfitUsdc;
+          const lpYield = payload.capitalSource === "SHARED_VAULT" ? net * 0.8 : 0;
+          const bounty = payload.capitalSource === "SHARED_VAULT" ? net * 0.2 : net;
+          localEngine.totalArbTradesCount += 1;
+          localEngine.totalArbitrageVolumeUsdc += payload.principalUsdc;
+          localEngine.totalCumulativeYieldUsdc += lpYield;
+          localEngine.totalKeeperBountiesUsdc += bounty;
+          localEngine.vaultTotalAssetsUsdc += lpYield;
+          localEngine.userWalletUsdc += bounty;
+          localEngine.recentLogs.push({
+            strategyId: localEngine.totalArbTradesCount,
+            netProfitE6: Math.round(net * 1e6),
+            direction: sim.marketState.optimalDirection,
+            capitalSource: payload.capitalSource,
+            borshIxData: sim.romeCpiInspection.borshInstructionPayload,
+            declaredAccountsCount: 7
+          });
+          toast.className = "toast ok";
+          toast.innerHTML = `✓ <b>ATOMIC SOLANA CPI SETTLED (~400ms)!</b> Strategy #${localEngine.totalArbTradesCount} • Net Profit: <b>+${fmtUsd(net)}</b> (Vault LP Yield: +${fmtUsd(lpYield)} | Your Keeper Bounty: +${fmtUsd(bounty)})`;
+        } else {
+          toast.className = "toast err";
+          toast.innerHTML = `🛡️ <b>ATOMIC REVERT GUARD TRIGGERED:</b> UnprofitableAtomicArbitrage — Entire EVM + Solana CPI transaction rolled back with 0 principal loss!`;
+        }
       }
       fetchState();
     });

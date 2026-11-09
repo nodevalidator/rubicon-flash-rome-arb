@@ -1,0 +1,1024 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rubicon Flash — Dual-Lane Atomic Arbitrage Router & Shared Vault (Rome Protocol)</title>
+  <style>
+    :root {
+      --bg: #080b12;
+      --panel: #101624;
+      --panel-alt: #151d30;
+      --border: #23304d;
+      --gold: #f5b942;
+      --gold-dim: rgba(245, 185, 66, 0.14);
+      --crimson: #e14b5a;
+      --emerald: #19d18b;
+      --emerald-dim: rgba(25, 209, 139, 0.14);
+      --cyan: #38bdf8;
+      --purple: #a855f7;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --mono: "JetBrains Mono", Consolas, monospace;
+      --sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: radial-gradient(circle at top right, #19132c 0%, var(--bg) 45%);
+      color: var(--text);
+      font-family: var(--sans);
+      line-height: 1.5;
+      padding-bottom: 60px;
+    }
+    header {
+      border-bottom: 1px solid var(--border);
+      background: rgba(16, 22, 36, 0.88);
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      padding: 14px 28px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .crest {
+      width: 42px;
+      height: 42px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #f5b942, #c83e4d);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 20px;
+      color: #080b12;
+      box-shadow: 0 0 20px rgba(245, 185, 66, 0.35);
+    }
+    .brand h1 {
+      font-size: 19px;
+      font-weight: 800;
+      letter-spacing: -0.3px;
+    }
+    .brand p {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .wallet-lanes {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+    }
+    select, input, button {
+      font-family: inherit;
+    }
+    .net-select {
+      background: var(--panel-alt);
+      color: var(--gold);
+      border: 1px solid var(--gold);
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .btn-wallet {
+      border: 1px solid var(--border);
+      background: var(--panel-alt);
+      color: var(--text);
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.15s;
+    }
+    .btn-wallet:hover {
+      border-color: var(--cyan);
+      transform: translateY(-1px);
+    }
+    .btn-wallet.active-evm {
+      border-color: #f6851b;
+      background: rgba(246, 133, 27, 0.14);
+    }
+    .btn-wallet.active-sol {
+      border-color: var(--purple);
+      background: rgba(168, 85, 247, 0.16);
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+    .dot.live {
+      background: var(--emerald);
+      box-shadow: 0 0 8px var(--emerald);
+    }
+    .container {
+      max-width: 1360px;
+      margin: 24px auto;
+      padding: 0 24px;
+    }
+    .arena-banner {
+      background: linear-gradient(90deg, rgba(245, 185, 66, 0.14), rgba(168, 85, 247, 0.12), rgba(25, 209, 139, 0.12));
+      border: 1px solid rgba(245, 185, 66, 0.4);
+      border-radius: 14px;
+      padding: 18px 22px;
+      margin-bottom: 22px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .tier-badges {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .tier-pill {
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      border: 1px solid var(--border);
+      background: rgba(16, 22, 36, 0.8);
+      color: var(--muted);
+    }
+    .tier-pill.unlocked {
+      border-color: var(--gold);
+      color: var(--gold);
+      background: var(--gold-dim);
+    }
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .kpi-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 18px;
+    }
+    .kpi-label {
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+    }
+    .kpi-value {
+      font-size: 26px;
+      font-weight: 800;
+      margin-top: 4px;
+      font-family: var(--mono);
+    }
+    .kpi-sub {
+      font-size: 12px;
+      color: var(--emerald);
+      margin-top: 4px;
+    }
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1.25fr 0.95fr;
+      gap: 22px;
+    }
+    @media (max-width: 1024px) {
+      .main-grid { grid-template-columns: 1fr; }
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 22px;
+      margin-bottom: 22px;
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .card-title {
+      font-size: 16px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .badge {
+      font-size: 11px;
+      padding: 3px 9px;
+      border-radius: 6px;
+      font-weight: 700;
+      font-family: var(--mono);
+    }
+    .badge-gold { background: var(--gold-dim); color: var(--gold); border: 1px solid rgba(245, 185, 66, 0.4); }
+    .badge-emerald { background: var(--emerald-dim); color: var(--emerald); border: 1px solid rgba(25, 209, 139, 0.4); }
+    .badge-purple { background: rgba(168, 85, 247, 0.16); color: #d8b4fe; border: 1px solid rgba(168, 85, 247, 0.4); }
+    .pools-compare {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 14px;
+      align-items: center;
+      margin-bottom: 18px;
+    }
+    .pool-box {
+      background: var(--panel-alt);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+    }
+    .pool-box h4 {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .pool-price {
+      font-size: 24px;
+      font-weight: 800;
+      font-family: var(--mono);
+    }
+    .slider-row {
+      margin-top: 10px;
+    }
+    .slider-row input[type="range"] {
+      width: 100%;
+      accent-color: var(--gold);
+    }
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .form-control {
+      width: 100%;
+      background: var(--panel-alt);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-family: var(--mono);
+      font-size: 14px;
+    }
+    .btn-primary {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #f5b942, #e07b24);
+      color: #080b12;
+      font-weight: 800;
+      font-size: 15px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-primary:hover {
+      filter: brightness(1.08);
+      transform: translateY(-1px);
+    }
+    .btn-secondary {
+      padding: 10px 16px;
+      border: 1px solid var(--gold);
+      border-radius: 8px;
+      background: var(--gold-dim);
+      color: var(--gold);
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .cpi-inspector {
+      background: #06090f;
+      border: 1px solid #1e293b;
+      border-radius: 10px;
+      padding: 14px;
+      font-family: var(--mono);
+      font-size: 12px;
+      overflow-x: auto;
+    }
+    .cpi-line {
+      margin-bottom: 6px;
+      word-break: break-all;
+    }
+    .cpi-key { color: var(--cyan); }
+    .cpi-val { color: var(--gold); }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      font-family: var(--mono);
+    }
+    th, td {
+      text-align: left;
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    th { color: var(--muted); font-weight: 600; }
+    .toast {
+      margin-top: 14px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-family: var(--mono);
+      display: none;
+    }
+    .toast.ok {
+      display: block;
+      background: var(--emerald-dim);
+      border: 1px solid var(--emerald);
+      color: #a7f3d0;
+    }
+    .toast.err {
+      display: block;
+      background: rgba(225, 75, 90, 0.16);
+      border: 1px solid var(--crimson);
+      color: #fecdd3;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="crest">RF</div>
+      <div>
+        <h1>RUBICON FLASH <span class="badge badge-gold">ROME ARENA MVP</span></h1>
+        <p>Dual-Lane Atomic Arbitrage Router & Shared Vault — EVM & Solana, One Market (~400ms Atomic CPI)</p>
+      </div>
+    </div>
+
+    <div class="wallet-lanes">
+      <select id="networkSelect" class="net-select">
+        <option value="hadrian">Hadrian Testnet (Chain 200010 • Gas: USDC)</option>
+        <option value="rubicon">Rubicon Mainnet (Chain 7531 • Gas: ROME)</option>
+      </select>
+      <button id="btnEvmWallet" class="btn-wallet">
+        <span id="dotEvm" class="dot"></span>
+        <span id="labelEvmWallet">Connect MetaMask (EVM Lane)</span>
+      </button>
+      <button id="btnSolWallet" class="btn-wallet">
+        <span id="dotSol" class="dot"></span>
+        <span id="labelSolWallet">Connect Phantom (Solana Lane)</span>
+      </button>
+    </div>
+  </header>
+
+  <div class="container">
+    <!-- Arena Tier & Laurel Progress Banner -->
+    <div class="arena-banner">
+      <div>
+        <div style="font-size:13px; color:var(--gold); font-weight:700; text-transform:uppercase;">
+          Rome Builder Arena — Live On-Chain Traction Engine
+        </div>
+        <div style="font-size:13px; color:var(--muted); margin-top:2px;">
+          Every Vault deposit grows <b>TVL</b> • Every 1-Click Arbitrage grows <b>Tx Volume</b> • Dual-Wallet linking grows <b>Unique Users</b>
+        </div>
+      </div>
+      <div class="tier-badges">
+        <span id="tierLegionary" class="tier-pill unlocked">★ Tier 1: Legionary (Active)</span>
+        <span id="tierPatrician" class="tier-pill">★★ Tier 2: Patrician</span>
+        <span id="tierPontifex" class="tier-pill">★★★ Tier 3: Pontifex Maximus</span>
+      </div>
+    </div>
+
+    <!-- Top KPI Row -->
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">Shared Vault TVL (wUSDC)</div>
+        <div id="kpiTvl" class="kpi-value">$150,000.00</div>
+        <div id="kpiSharePrice" class="kpi-sub">rvUSDC Share Price: 1.000000 wUSDC</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Atomic Arbitrage Volume</div>
+        <div id="kpiVolume" class="kpi-value">$0.00</div>
+        <div id="kpiTradesCount" class="kpi-sub">0 Atomic EVM⇄Solana CPI Txns</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Cumulative LP Yield + Bounties</div>
+        <div id="kpiYield" class="kpi-value">$0.00</div>
+        <div id="kpiBounties" class="kpi-sub">80% to Vault LPs • 20% Instant Keeper Bounty</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Dual-Lane Arena Users</div>
+        <div id="kpiUsers" class="kpi-value">1</div>
+        <div id="kpiChainFacts" class="kpi-sub">Program: RPTWwELX...gCcWf</div>
+      </div>
+    </div>
+
+    <div class="main-grid">
+      <!-- Left Column: Live Spread Radar + 1-Click Atomic Arbitrage Executor -->
+      <div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <span>⚡ Dual-Market Spread Radar & 1-Click Atomic CPI Executor</span>
+            </div>
+            <span id="spreadBadge" class="badge badge-emerald">+2.75% ATOMIC SPREAD</span>
+          </div>
+
+          <div class="pools-compare">
+            <div class="pool-box">
+              <h4>LEG A: ROME EVM (Uniswap V3 Pool)</h4>
+              <div id="uniPriceDisplay" class="pool-price">$180.00 <span style="font-size:13px; color:var(--muted)">wUSDC/wSOL</span></div>
+              <div class="slider-row">
+                <label style="font-size:11px; color:var(--muted)">Simulate EVM SOL Price ($165 - $195):</label>
+                <input id="uniPriceSlider" type="range" min="165" max="195" step="0.25" value="180.00" />
+              </div>
+            </div>
+
+            <div style="text-align:center">
+              <div id="directionArrow" style="font-size:22px; font-weight:900; color:var(--gold);">⇄</div>
+              <div style="font-size:11px; color:var(--muted); font-family:var(--mono);">1 Solana Tx<br/>(~400ms)</div>
+            </div>
+
+            <div class="pool-box">
+              <h4>LEG B: SOLANA NATIVE (Meteora DAMM via CPI)</h4>
+              <div id="meteoraPriceDisplay" class="pool-price">$184.95 <span style="font-size:13px; color:var(--muted)">USDC/SOL</span></div>
+              <div class="slider-row">
+                <label style="font-size:11px; color:var(--muted)">Simulate Solana SOL Price ($165 - $195):</label>
+                <input id="meteoraPriceSlider" type="range" min="165" max="195" step="0.25" value="184.95" />
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Capital Source (Zero-Capital Flash or Personal Wallet)</label>
+              <select id="capitalSourceSelect" class="form-control">
+                <option value="SHARED_VAULT">Shared RomeArbVault (20% Instant Keeper Bounty, 0 Capital Needed)</option>
+                <option value="USER_WALLET">My Connected Wallet (Keep 100% of Net Arbitrage Profit)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Arbitrage Principal Size (wUSDC)</label>
+              <input id="arbPrincipalInput" type="number" class="form-control" value="10000" min="100" step="500" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Minimum Required Profit Guard (wUSDC — Reverts if lower)</label>
+              <input id="minProfitInput" type="number" class="form-control" value="25" min="1" step="5" />
+            </div>
+            <div class="form-group">
+              <label>Simulated Net Outcome Preview</label>
+              <div id="simOutcomeBox" class="form-control" style="color:var(--emerald); font-weight:700;">
+                Est. Net Profit: +$259.58 USDC (Keeper Bounty: +$51.92)
+              </div>
+            </div>
+          </div>
+
+          <button id="btnExecuteArb" class="btn-primary">
+            🚀 EXECUTE ATOMIC ARBITRAGE (UNISWAP V3 ⇄ SOLANA METEORA CPI)
+          </button>
+
+          <div id="arbToast" class="toast"></div>
+        </div>
+
+        <!-- Upfront Solana AccountMeta[] & Borsh Payload Inspector -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <span>🔍 Rome Precompile & Solana CPI Inspector</span>
+            </div>
+            <span class="badge badge-purple">0xFF00000000000000000000000000000000000008</span>
+          </div>
+
+          <div class="cpi-inspector" style="margin-bottom:14px;">
+            <div class="cpi-line"><span class="cpi-key">CpiProgram Precompile     :</span> <span class="cpi-val">0xFF00000000000000000000000000000000000008 (invoke_signed)</span></div>
+            <div class="cpi-line"><span class="cpi-key">SystemProgram Precompile  :</span> <span class="cpi-val">0xFF00000000000000000000000000000000000007 (externalAuthorityPda)</span></div>
+            <div class="cpi-line"><span class="cpi-key">HelperProgram Precompile  :</span> <span class="cpi-val">0xFF00000000000000000000000000000000000009 (Shared-State SPL Sync)</span></div>
+            <div class="cpi-line"><span class="cpi-key">External-Authority PDA    :</span> <span id="inspectorPda" class="cpi-val">0x...</span></div>
+            <div class="cpi-line"><span class="cpi-key">CPI Call Depth            :</span> <span class="cpi-val">2 / 4 (Compliant with Rome ≤ 4 Constraint)</span></div>
+            <div class="cpi-line"><span class="cpi-key">Borsh Instruction Payload :</span> <span id="inspectorBorsh" class="cpi-val">0xf8c69e91e17587c8...</span></div>
+          </div>
+
+          <div style="font-size:12px; color:var(--muted); margin-bottom:8px; font-weight:600;">
+            Declared Upfront Solana Accounts (ICrossProgramInvocation.AccountMeta[7]):
+          </div>
+          <div style="overflow-x:auto;">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Role</th>
+                  <th>Solana Pubkey (bytes32)</th>
+                  <th>Signer</th>
+                  <th>Writable</th>
+                </tr>
+              </thead>
+              <tbody id="accountsTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Shared Liquidity Vault (ERC-4626) + Live Execution Feed -->
+      <div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <span>🏦 RomeArbVault — Shared Dual-Lane Liquidity Pool</span>
+            </div>
+            <span class="badge badge-gold">ERC-4626 • rvUSDC</span>
+          </div>
+
+          <p style="font-size:13px; color:var(--muted); margin-bottom:16px;">
+            Deposit <b>wUSDC</b> from either MetaMask (EVM) or Phantom (Solana) into one shared state. Your liquidity powers atomic flash arbitrage and earns <b>80% of every trade's profit</b> automatically.
+          </p>
+
+          <div class="kpi-grid" style="grid-template-columns: 1fr 1fr; margin-bottom:16px;">
+            <div class="pool-box">
+              <h4>Your Wallet Balance</h4>
+              <div id="userWalletBalance" class="pool-price" style="font-size:20px;">25,000.00 <span style="font-size:12px; color:var(--muted)">wUSDC</span></div>
+            </div>
+            <div class="pool-box">
+              <h4>Your Vault Position</h4>
+              <div id="userVaultShares" class="pool-price" style="font-size:20px; color:var(--gold);">0.00 <span style="font-size:12px; color:var(--muted)">rvUSDC</span></div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Deposit wUSDC to Earn Yield</label>
+              <div style="display:flex; gap:8px;">
+                <input id="depositInput" type="number" class="form-control" value="5000" min="100" step="500" />
+                <button id="btnDeposit" class="btn-secondary">Deposit</button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Withdraw rvUSDC Shares + Profit</label>
+              <div style="display:flex; gap:8px;">
+                <input id="withdrawInput" type="number" class="form-control" value="1000" min="100" step="500" />
+                <button id="btnWithdraw" class="btn-secondary">Withdraw</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="vaultToast" class="toast"></div>
+        </div>
+
+        <!-- Registry & Contract Addresses Card -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <span>📜 Dynamic @rome-protocol/registry Facts</span>
+            </div>
+            <span id="registryChainBadge" class="badge badge-emerald">Chain ID: 200010</span>
+          </div>
+          <div id="registryFactsBox" class="cpi-inspector" style="font-size:11.5px;"></div>
+        </div>
+
+        <!-- Recent Atomic Arbitrage Transactions Feed -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <span>📡 Live Atomic CPI Settlement Log</span>
+            </div>
+            <span class="badge badge-gold">~400ms Finality</span>
+          </div>
+          <div id="txLogContainer" style="max-height:260px; overflow-y:auto; font-family:var(--mono); font-size:12px; color:var(--muted);">
+            No arbitrage trades executed in this session yet. Click "Execute Atomic Arbitrage" to dispatch your first EVM ⇄ Solana CPI strategy!
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const state = {
+      network: "hadrian",
+      evmAddress: "0x71C8...9A2E",
+      solanaPubkeyHex: "0x99887766554433221100aabbccddeeff99887766554433221100aabbccddeeff",
+      evmConnected: false,
+      solConnected: false,
+      uniPrice: 180.00,
+      meteoraPrice: 184.95,
+    };
+
+    const fmtUsd = (n) => "$" + Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    // Embedded fallback runtime so the dashboard works 100% standalone (GitHub Pages / Vercel static) as well as with the Node/Vercel API
+    const LOCAL_CHAINS = {
+      hadrian: {
+        name: "Rome Hadrian Testnet",
+        chainId: 200010,
+        rpcUrl: "https://hadrian.testnet.romeprotocol.xyz/",
+        romeEvmProgramId: "RPTWwELXAY4KC9ZPHhaxp7Sq1hHtU3HNEgLbSegCcWf",
+        nativeCurrency: { symbol: "USDC" },
+        contracts: {
+          ERC20SPLFactory: "0x37c13e4f00000000000000000000000000001078",
+          UniswapV3Factory: "0xD9E323080000000000000000000000000000D5bD"
+        },
+        tokens: {
+          wUSDC: { address: "0x0952d23300000000000000000000000000200010" },
+          wSOL: { address: "0xc4e29e0f00000000000000000000000000200010" }
+        }
+      },
+      rubicon: {
+        name: "Rome Rubicon Mainnet",
+        chainId: 7531,
+        rpcUrl: "https://rubicon.mainnet.romeprotocol.xyz/",
+        romeEvmProgramId: "RomePq9X3iAoTr813HR7uRarafFDUJty6GdiEceYpzX",
+        nativeCurrency: { symbol: "ROME" },
+        contracts: {
+          ERC20SPLFactory: "0x4068aa740000000000000000000000000000ae6e",
+          UniswapV3Factory: "0x02aed7760000000000000000000000000000a025"
+        },
+        tokens: {
+          wUSDC: { address: "0x0952d2330000000000000000000000000000f9b3" },
+          wSOL: { address: "0xc4e29e0f0000000000000000000000000000a113" }
+        }
+      }
+    };
+
+    const localEngine = {
+      vaultTotalAssetsUsdc: 150000,
+      vaultTotalShares: 150000,
+      userWalletUsdc: 25000,
+      userVaultShares: 0,
+      totalUniqueUsers: 1,
+      totalArbitrageVolumeUsdc: 0,
+      totalCumulativeYieldUsdc: 0,
+      totalKeeperBountiesUsdc: 0,
+      totalArbTradesCount: 0,
+      recentLogs: []
+    };
+
+    function toLe64Hex(num) {
+      let v = BigInt(Math.max(0, Math.round(num)));
+      let hex = "";
+      for (let i = 0; i < 8; i++) {
+        hex += Number(v & 0xffn).toString(16).padStart(2, "0");
+        v >>= 8n;
+      }
+      return hex;
+    }
+
+    function computeLocalState() {
+      const chain = LOCAL_CHAINS[state.network] || LOCAL_CHAINS.hadrian;
+      const principalUsdc = parseFloat(document.getElementById("arbPrincipalInput").value || "10000");
+      const minProfitUsdc = parseFloat(document.getElementById("minProfitInput").value || "25");
+      const spreadPct = Number((((state.meteoraPrice - state.uniPrice) / state.uniPrice) * 100).toFixed(2));
+      const direction = state.meteoraPrice >= state.uniPrice ? "EVM_TO_SOLANA" : "SOLANA_TO_EVM";
+
+      let grossOutUsdc = 0;
+      if (direction === "EVM_TO_SOLANA") {
+        const solBought = principalUsdc / state.uniPrice;
+        const grossMeteora = solBought * state.meteoraPrice;
+        grossOutUsdc = grossMeteora * (1 - 0.0015);
+      } else {
+        const solBought = (principalUsdc / state.meteoraPrice) * (1 - 0.0015);
+        grossOutUsdc = solBought * state.uniPrice;
+      }
+
+      const netProfitUsdc = grossOutUsdc - principalUsdc;
+      const profitable = netProfitUsdc >= minProfitUsdc;
+      const keeperBountyUsdc = profitable ? netProfitUsdc * 0.2 : 0;
+      const lpVaultYieldUsdc = profitable ? netProfitUsdc * 0.8 : 0;
+      const borshHex = "0xf8c69e91e17587c8" + toLe64Hex(principalUsdc * 1e6) + toLe64Hex((principalUsdc + minProfitUsdc) * 1e6);
+      const externalPda = "0xb83e8accbdc02adbc5d25897fdd9312e83d6318145668c340f63dfe6b179ecee";
+
+      const sharePrice = localEngine.vaultTotalShares > 0
+        ? localEngine.vaultTotalAssetsUsdc / localEngine.vaultTotalShares
+        : 1.0;
+
+      return {
+        chain,
+        simulation: {
+          marketState: { spreadPct, optimalDirection: direction },
+          romeCpiInspection: {
+            routerExternalAuthorityPda: externalPda,
+            borshInstructionPayload: borshHex,
+            solanaAccounts: [
+              { label: "Meteora DAMM Pool State", pubkey: "0x6a9f00112233445566778899aabbccddeeff00112233445566778899aabbcc01", isSigner: false, isWritable: true },
+              { label: "Router wSOL Associated Token Account", pubkey: "0x7b8e00112233445566778899aabbccddeeff00112233445566778899aabbcc02", isSigner: false, isWritable: true },
+              { label: "Router wUSDC Associated Token Account", pubkey: "0x8c7d00112233445566778899aabbccddeeff00112233445566778899aabbcc03", isSigner: false, isWritable: true },
+              { label: "Meteora Token A Vault (SOL)", pubkey: "0x9d6c00112233445566778899aabbccddeeff00112233445566778899aabbcc04", isSigner: false, isWritable: true },
+              { label: "Meteora Token B Vault (USDC)", pubkey: "0xae5b00112233445566778899aabbccddeeff00112233445566778899aabbcc05", isSigner: false, isWritable: true },
+              { label: "Router External-Authority PDA (Signer)", pubkey: externalPda, isSigner: true, isWritable: false },
+              { label: "Solana SPL Token Program", pubkey: "0x06ddf6e1d765a193d9cbe146ceeb79ac1cb485ed5f5b37913a8cf5857eff00a9", isSigner: false, isWritable: false }
+            ]
+          },
+          simulationOutcome: {
+            status: profitable ? "PROFITABLE_READY" : "ATOMIC_REVERT_GUARD_TRIGGERED",
+            netProfitUsdc,
+            keeperBountyUsdc,
+            lpVaultYieldUsdc
+          }
+        },
+        vault: {
+          totalAssetsUsdc: localEngine.vaultTotalAssetsUsdc,
+          totalShares: localEngine.vaultTotalShares,
+          sharePrice,
+          totalUniqueUsers: localEngine.totalUniqueUsers,
+          totalArbitrageVolumeUsdc: localEngine.totalArbitrageVolumeUsdc,
+          totalCumulativeYieldUsdc: localEngine.totalCumulativeYieldUsdc,
+          totalKeeperBountiesUsdc: localEngine.totalKeeperBountiesUsdc,
+          totalArbTradesCount: localEngine.totalArbTradesCount
+        },
+        user: {
+          walletUsdc: localEngine.userWalletUsdc,
+          vaultShares: localEngine.userVaultShares,
+          vaultAssetsValueUsdc: localEngine.userVaultShares * sharePrice
+        },
+        recentLogs: localEngine.recentLogs
+      };
+    }
+
+    async function fetchState() {
+      try {
+        const res = await fetch(`/api/state?network=${state.network}&uniPrice=${state.uniPrice}&meteoraPrice=${state.meteoraPrice}&principal=${document.getElementById("arbPrincipalInput").value}&minProfit=${document.getElementById("minProfitInput").value}`);
+        if (!res.ok) throw new Error("Static fallback");
+        const data = await res.json();
+        renderDashboard(data);
+      } catch {
+        renderDashboard(computeLocalState());
+      }
+    }
+
+    function renderDashboard(data) {
+      // KPIs
+      document.getElementById("kpiTvl").textContent = fmtUsd(data.vault.totalAssetsUsdc);
+      document.getElementById("kpiSharePrice").textContent = `rvUSDC Share Price: ${data.vault.sharePrice.toFixed(6)} wUSDC`;
+      document.getElementById("kpiVolume").textContent = fmtUsd(data.vault.totalArbitrageVolumeUsdc);
+      document.getElementById("kpiTradesCount").textContent = `${data.vault.totalArbTradesCount} Atomic EVM⇄Solana CPI Txns`;
+      document.getElementById("kpiYield").textContent = fmtUsd(data.vault.totalCumulativeYieldUsdc + data.vault.totalKeeperBountiesUsdc);
+      document.getElementById("kpiBounties").textContent = `LP Yield: ${fmtUsd(data.vault.totalCumulativeYieldUsdc)} • Bounties: ${fmtUsd(data.vault.totalKeeperBountiesUsdc)}`;
+      document.getElementById("kpiUsers").textContent = data.vault.totalUniqueUsers;
+      document.getElementById("kpiChainFacts").textContent = `Program: ${data.chain.romeEvmProgramId.slice(0, 10)}...${data.chain.romeEvmProgramId.slice(-6)}`;
+
+      // Arena Tier Unlock highlights
+      document.getElementById("tierPatrician").classList.toggle("unlocked", data.vault.totalArbitrageVolumeUsdc >= 25000);
+      document.getElementById("tierPontifex").classList.toggle("unlocked", data.vault.totalArbitrageVolumeUsdc >= 75000);
+
+      // User Balances
+      document.getElementById("userWalletBalance").innerHTML = `${Number(data.user.walletUsdc).toLocaleString("en-US", {minimumFractionDigits:2})} <span style="font-size:12px; color:var(--muted)">wUSDC</span>`;
+      document.getElementById("userVaultShares").innerHTML = `${Number(data.user.vaultShares).toLocaleString("en-US", {minimumFractionDigits:2})} <span style="font-size:12px; color:var(--muted)">rvUSDC (${fmtUsd(data.user.vaultAssetsValueUsdc)})</span>`;
+
+      // Spread & Simulation Preview
+      const spread = data.simulation.marketState.spreadPct;
+      const absSpread = Math.abs(spread).toFixed(2);
+      const dir = data.simulation.marketState.optimalDirection;
+      const badge = document.getElementById("spreadBadge");
+      badge.textContent = `${spread >= 0 ? "+" : ""}${spread}% SPREAD (${dir})`;
+
+      const simOut = data.simulation.simulationOutcome;
+      const simBox = document.getElementById("simOutcomeBox");
+      if (simOut.status === "PROFITABLE_READY") {
+        simBox.style.color = "var(--emerald)";
+        simBox.textContent = `Est. Net Profit: +${fmtUsd(simOut.netProfitUsdc)} (Keeper Bounty: +${fmtUsd(simOut.keeperBountyUsdc)})`;
+      } else {
+        simBox.style.color = "var(--crimson)";
+        simBox.textContent = `ATOMIC GUARD WILL REVERT: Spread below minProfit + 0.15% fee`;
+      }
+
+      // CPI Inspector
+      const cpi = data.simulation.romeCpiInspection;
+      document.getElementById("inspectorPda").textContent = cpi.routerExternalAuthorityPda;
+      document.getElementById("inspectorBorsh").textContent = cpi.borshInstructionPayload;
+
+      const tbody = document.getElementById("accountsTableBody");
+      tbody.innerHTML = cpi.solanaAccounts.map((acc, i) => `
+        <tr>
+          <td>${i}</td>
+          <td style="color:var(--text)">${acc.label}</td>
+          <td style="color:var(--cyan)">${acc.pubkey.slice(0, 14)}...${acc.pubkey.slice(-8)}</td>
+          <td style="color:${acc.isSigner ? 'var(--gold)' : 'var(--muted)'}">${acc.isSigner}</td>
+          <td style="color:${acc.isWritable ? 'var(--emerald)' : 'var(--muted)'}">${acc.isWritable}</td>
+        </tr>
+      `).join("");
+
+      // Registry Facts
+      document.getElementById("registryChainBadge").textContent = `Chain ID: ${data.chain.chainId} (${data.chain.nativeCurrency.symbol})`;
+      document.getElementById("registryFactsBox").innerHTML = `
+        <div class="cpi-line"><span class="cpi-key">Network Name      :</span> <span class="cpi-val">${data.chain.name}</span></div>
+        <div class="cpi-line"><span class="cpi-key">RPC Endpoint      :</span> <span class="cpi-val">${data.chain.rpcUrl}</span></div>
+        <div class="cpi-line"><span class="cpi-key">Rome EVM Program  :</span> <span class="cpi-val">${data.chain.romeEvmProgramId}</span></div>
+        <div class="cpi-line"><span class="cpi-key">ERC20SPLFactory   :</span> <span class="cpi-val">${data.chain.contracts.ERC20SPLFactory}</span></div>
+        <div class="cpi-line"><span class="cpi-key">UniswapV3Factory  :</span> <span class="cpi-val">${data.chain.contracts.UniswapV3Factory}</span></div>
+        <div class="cpi-line"><span class="cpi-key">wUSDC Token       :</span> <span class="cpi-val">${data.chain.tokens.wUSDC.address}</span></div>
+        <div class="cpi-line"><span class="cpi-key">wSOL Token        :</span> <span class="cpi-val">${data.chain.tokens.wSOL.address}</span></div>
+      `;
+
+      // Recent Logs
+      if (data.recentLogs && data.recentLogs.length > 0) {
+        document.getElementById("txLogContainer").innerHTML = data.recentLogs.slice().reverse().map((log) => `
+          <div style="padding:8px 0; border-bottom:1px solid var(--border);">
+            <span style="color:var(--gold)">[Tx #${log.strategyId}]</span>
+            <span style="color:var(--emerald)">+${fmtUsd(Number(log.netProfitE6)/1e6)} Net Profit</span>
+            (${log.direction} via ${log.capitalSource})<br/>
+            <span style="color:var(--cyan)">Borsh CPI: ${log.borshIxData}</span> • Accounts: ${log.declaredAccountsCount}
+          </div>
+        `).join("");
+      }
+    }
+
+    // Event Listeners
+    document.getElementById("networkSelect").addEventListener("change", (e) => {
+      state.network = e.target.value;
+      fetchState();
+    });
+
+    document.getElementById("uniPriceSlider").addEventListener("input", (e) => {
+      state.uniPrice = parseFloat(e.target.value);
+      document.getElementById("uniPriceDisplay").innerHTML = `$${state.uniPrice.toFixed(2)} <span style="font-size:13px; color:var(--muted)">wUSDC/wSOL</span>`;
+      fetchState();
+    });
+
+    document.getElementById("meteoraPriceSlider").addEventListener("input", (e) => {
+      state.meteoraPrice = parseFloat(e.target.value);
+      document.getElementById("meteoraPriceDisplay").innerHTML = `$${state.meteoraPrice.toFixed(2)} <span style="font-size:13px; color:var(--muted)">USDC/SOL</span>`;
+      fetchState();
+    });
+
+    document.getElementById("arbPrincipalInput").addEventListener("input", fetchState);
+    document.getElementById("minProfitInput").addEventListener("input", fetchState);
+
+    // Connect MetaMask (EVM Lane)
+    document.getElementById("btnEvmWallet").addEventListener("click", async () => {
+      if (window.ethereum) {
+        try {
+          const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+          if (accounts && accounts[0]) state.evmAddress = accounts[0];
+        } catch {}
+      }
+      state.evmConnected = true;
+      document.getElementById("btnEvmWallet").classList.add("active-evm");
+      document.getElementById("dotEvm").classList.add("live");
+      document.getElementById("labelEvmWallet").textContent = `MetaMask: ${state.evmAddress.slice(0, 6)}...${state.evmAddress.slice(-4)}`;
+    });
+
+    // Connect Phantom (Solana Lane)
+    document.getElementById("btnSolWallet").addEventListener("click", async () => {
+      let solDisplay = "Phntm...9xVq";
+      if (window.solana && window.solana.isPhantom) {
+        try {
+          const resp = await window.solana.connect();
+          solDisplay = resp.publicKey.toString().slice(0, 5) + "..." + resp.publicKey.toString().slice(-4);
+        } catch {}
+      }
+      if (!state.solConnected) localEngine.totalUniqueUsers += 1;
+      state.solConnected = true;
+      document.getElementById("btnSolWallet").classList.add("active-sol");
+      document.getElementById("dotSol").classList.add("live");
+      document.getElementById("labelSolWallet").textContent = `Phantom: ${solDisplay} (Dual-Lane Linked)`;
+      try { await fetch("/api/link-wallet", { method: "POST" }); } catch {}
+      fetchState();
+    });
+
+    // Deposit to Shared Vault
+    document.getElementById("btnDeposit").addEventListener("click", async () => {
+      const amount = parseFloat(document.getElementById("depositInput").value || "0");
+      const toast = document.getElementById("vaultToast");
+      try {
+        const res = await fetch("/api/deposit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ amountUsdc: amount }),
+        });
+        if (!res.ok && res.status === 404) throw new Error("Static fallback");
+        const out = await res.json();
+        if (out.ok) {
+          toast.className = "toast ok";
+          toast.textContent = `✓ Deposited ${fmtUsd(amount)} wUSDC into Shared Vault! Minted ${(Number(out.sharesMintedE6)/1e6).toFixed(2)} rvUSDC.`;
+        } else {
+          toast.className = "toast err";
+          toast.textContent = `✗ Deposit Error: ${out.error}`;
+        }
+      } catch {
+        if (amount <= 0 || amount > localEngine.userWalletUsdc) {
+          toast.className = "toast err";
+          toast.textContent = `✗ Deposit Error: Insufficient wUSDC balance`;
+        } else {
+          const sharePrice = localEngine.vaultTotalAssetsUsdc / localEngine.vaultTotalShares;
+          const minted = amount / sharePrice;
+          localEngine.userWalletUsdc -= amount;
+          localEngine.vaultTotalAssetsUsdc += amount;
+          localEngine.vaultTotalShares += minted;
+          localEngine.userVaultShares += minted;
+          toast.className = "toast ok";
+          toast.textContent = `✓ Deposited ${fmtUsd(amount)} wUSDC into Shared Vault! Minted ${minted.toFixed(2)} rvUSDC.`;
+        }
+      }
+      fetchState();
+    });
+
+    // Withdraw from Shared Vault
+    document.getElementById("btnWithdraw").addEventListener("click", async () => {
+      const shares = parseFloat(document.getElementById("withdrawInput").value || "0");
+      const toast = document.getElementById("vaultToast");
+      try {
+        const res = await fetch("/api/withdraw", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ shares }),
+        });
+        if (!res.ok && res.status === 404) throw new Error("Static fallback");
+        const out = await res.json();
+        if (out.ok) {
+          toast.className = "toast ok";
+          toast.textContent = `✓ Burned ${shares.toFixed(2)} rvUSDC shares -> Received ${fmtUsd(Number(out.assetsOutE6)/1e6)} wUSDC (Principal + Arbitrage Yield)!`;
+        } else {
+          toast.className = "toast err";
+          toast.textContent = `✗ Withdraw Error: ${out.error}`;
+        }
+      } catch {
+        if (shares <= 0 || shares > localEngine.userVaultShares) {
+          toast.className = "toast err";
+          toast.textContent = `✗ Withdraw Error: Insufficient rvUSDC shares`;
+        } else {
+          const sharePrice = localEngine.vaultTotalAssetsUsdc / localEngine.vaultTotalShares;
+          const assetsOut = shares * sharePrice;
+          localEngine.userVaultShares -= shares;
+          localEngine.vaultTotalShares -= shares;
+          localEngine.vaultTotalAssetsUsdc -= assetsOut;
+          localEngine.userWalletUsdc += assetsOut;
+          toast.className = "toast ok";
+          toast.textContent = `✓ Burned ${shares.toFixed(2)} rvUSDC shares -> Received ${fmtUsd(assetsOut)} wUSDC (Principal + Arbitrage Yield)!`;
+        }
+      }
+      fetchState();
+    });
+
+    // Execute 1-Click Atomic Arbitrage
+    document.getElementById("btnExecuteArb").addEventListener("click", async () => {
+      const toast = document.getElementById("arbToast");
+      const payload = {
+        uniPrice: state.uniPrice,
+        meteoraPrice: state.meteoraPrice,
+        capitalSource: document.getElementById("capitalSourceSelect").value,
+        principalUsdc: parseFloat(document.getElementById("arbPrincipalInput").value || "10000"),
+        minProfitUsdc: parseFloat(document.getElementById("minProfitInput").value || "25"),
+      };
+      try {
+        const res = await fetch("/api/execute-arb", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok && res.status === 404) throw new Error("Static fallback");
+        const out = await res.json();
+        if (out.ok) {
+          const r = out.result;
+          toast.className = "toast ok";
+          toast.innerHTML = `✓ <b>ATOMIC SOLANA CPI SETTLED (~400ms)!</b> Strategy #${r.strategyId} • Net Profit: <b>+${fmtUsd(Number(r.netProfitE6)/1e6)}</b> (Vault LP Yield: +${fmtUsd(Number(r.lpYieldE6)/1e6)} | Your Keeper Bounty: +${fmtUsd(Number(r.keeperBountyE6)/1e6)})`;
+        } else {
+          toast.className = "toast err";
+          toast.innerHTML = `🛡️ <b>ATOMIC REVERT GUARD TRIGGERED:</b> ${out.error} — Entire EVM + Solana CPI transaction rolled back with 0 principal loss!`;
+        }
+      } catch {
+        const sim = computeLocalState().simulation;
+        if (sim.simulationOutcome.status === "PROFITABLE_READY") {
+          const net = sim.simulationOutcome.netProfitUsdc;
+          const lpYield = payload.capitalSource === "SHARED_VAULT" ? net * 0.8 : 0;
+          const bounty = payload.capitalSource === "SHARED_VAULT" ? net * 0.2 : net;
+          localEngine.totalArbTradesCount += 1;
+          localEngine.totalArbitrageVolumeUsdc += payload.principalUsdc;
+          localEngine.totalCumulativeYieldUsdc += lpYield;
+          localEngine.totalKeeperBountiesUsdc += bounty;
+          localEngine.vaultTotalAssetsUsdc += lpYield;
+          localEngine.userWalletUsdc += bounty;
+          localEngine.recentLogs.push({
+            strategyId: localEngine.totalArbTradesCount,
+            netProfitE6: Math.round(net * 1e6),
+            direction: sim.marketState.optimalDirection,
+            capitalSource: payload.capitalSource,
+            borshIxData: sim.romeCpiInspection.borshInstructionPayload,
+            declaredAccountsCount: 7
+          });
+          toast.className = "toast ok";
+          toast.innerHTML = `✓ <b>ATOMIC SOLANA CPI SETTLED (~400ms)!</b> Strategy #${localEngine.totalArbTradesCount} • Net Profit: <b>+${fmtUsd(net)}</b> (Vault LP Yield: +${fmtUsd(lpYield)} | Your Keeper Bounty: +${fmtUsd(bounty)})`;
+        } else {
+          toast.className = "toast err";
+          toast.innerHTML = `🛡️ <b>ATOMIC REVERT GUARD TRIGGERED:</b> UnprofitableAtomicArbitrage — Entire EVM + Solana CPI transaction rolled back with 0 principal loss!`;
+        }
+      }
+      fetchState();
+    });
+
+    fetchState();
+  </script>
+</body>
+</html>
